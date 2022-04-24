@@ -1,0 +1,499 @@
+micropython on ESP32
+ESP32 connect to USB on pi4 
+=======================================================================================
+# Some commands to know in terminal mode:
+	- ls /dev/*USB*
+	- rshell -p /dev/ttyUSB0 --editor nano
+	- ls /pyboard
+	- edit /pyboard/main.py
+	- CTRL-D pour quitter repl
+
+# or in Thonny, choose interpreter in Tools/Options/MicroPython(ESP32):
+	- import main
+
+=======================================================================================
+Links to read: 
+	https://wiki.mchobby.be/index.php?title=MicroPython-Hack-RShell#RShell:_Shell_distant_pour_MicroPython
+	https://docs.micropython.org/en/latest/esp32/quickref.html#general-board-control
+	https://micropython.org/
+	https://github.com/jdavid54/micropython-1
+	https://wiki.mchobby.be/index.php?title=MicroPython-Hack-RShell#RShell_sur_ESP32_.28M5Stack.29
+	http://docs.micropython.org/en/latest/esp32/quickref.html
+=======================================================================================
+How to connect to ESP32 with rshell:
+===================================
+1) Dans terminal, lancer rshell sans option.
+
+ 	usage: rshell [options] [command]
+
+    Remote Shell for a MicroPython board.
+
+    Argument positionnels:
+      cmd                   commande optionnel à exécuter
+
+    Argument positionnel:
+      -h, --help            Affiche le message d'aide et quitter le programme
+      -b BAUD, --baud BAUD  fixe le débit utilisé (115200 par défaut)
+      --buffer-size BUFFER_SIZE
+                            Fixe la taille du buffer (mémoire tamppon) utilisé pour les transfert (512 octets/bytes par défaut)
+>>>>  -p PORT, --port PORT  Port série à utiliser ('/dev/ttyACM0' par défaut)
+      -u USER, --user USER  Le nom d'utilisateur à utiliser ('micro' par défaut. Pour le WiPy et sa connexion Telnet)
+      -w PASSWORD, --password PASSWORD
+                            Fixe le mot de passe à utiliser ('python' par défaut. Pour le WiPy et sa connexion Telnet)
+>>>>  -e EDITOR, --editor EDITOR
+                            Determine l'éditeur à utiliser ('vi' par défaut)
+      -f FILENAME, --file FILENAME
+                            Spécifier une fichier de commande à traiter.
+>>>>  -d, --debug           Activer le mode de débogage
+      -n, --nocolor         Désactiver la l'affichage en couleur
+      --wait                Délais d'attente sur le port série
+      --timing              Afficher les informations de temps pour chaque commande
+      --quiet               Désactive l'affichage de message de sortie (utile pour les tests)
+
+    Vous pouvez spécifier le port série à utiliser dans la 
+    variable d'environnement RSHELL_PORT
+ 
+=====================================================================================
+Pour connaitre le port USB où se trouve ESP32:
+   ls /dev/*USB*
+
+	result : /dev/ttyUSB0
+=====================================================================================
+RSHELL : rshell
+=====================================================================================
+
+=====================================================================================
+MODE DEBUG : -d
+#debug on 
+=====================================================================================
+pi@raspberrypi:~ $ rshell -d -p /dev/ttyUSB0
+Debug = True
+Port = /dev/ttyUSB0
+Baud = 115200
+User = micro
+Password = python
+Wait = 0
+List = 0
+nocolor = 0
+ascii = 0
+Timing = 0
+Quiet = 0
+BUFFER_SIZE = 512
+Cmd = []
+Using buffer-size of 32
+Connecting to /dev/ttyUSB0 (buffer-size 32)...
+Trying to connect to REPL  connected
+Testing if ubinascii.unhexlify exists ... ----- About to send 304 bytes of code to the pyboard -----
+def test_unhexlify():
+    """Checks the micropython firmware to see if ubinascii.unhexlify exists."""
+    import ubinascii
+    try:
+        _ = ubinascii.unhexlify
+        return True
+    except:
+        return False
+output = test_unhexlify()
+if output is None:
+    print("None")
+else:
+    print(output)
+
+-----
+-----Response-----
+b'True\r\n'
+-----
+Y
+Retrieving root directories ... ----- About to send 222 bytes of code to the pyboard -----
+def listdir(dirname):
+    """Returns a list of filenames contained in the named directory."""
+    import os
+    return os.listdir(dirname)
+output = listdir('/')
+if output is None:
+    print("None")
+else:
+    print(output)
+
+-----
+-----Response-----
+b"['DHT11_pub.py', 'boot.py', 'ftp.py', 'main.py', 'microWebSocket.py', 'microWebSrv.py', 'microWebSrv2.png', 'microWebTemplate.py', 'start.py', 'start2.py', 'start2b.py', 'umqtt', 'www']\r\n"
+-----
+/DHT11_pub.py/ /boot.py/ /ftp.py/ /main.py/ /microWebSocket.py/ /microWebSrv.py/ /microWebSrv2.png/ /microWebTemplate.py/ /start.py/ /start2.py/ /start2b.py/ /umqtt/ /www/
+Setting time ... ----- About to send 1694 bytes of code to the pyboard -----
+def set_time(rtc_time):
+    rtc = None
+    try:
+        # Pyboard (pyboard doesn't have machine.RTC()).
+        # The pyb.RTC.datetime function takes the arguments in the order:
+        # (year, month, day, weekday, hour, minute, second, subseconds)
+        # http://docs.micropython.org/en/latest/library/pyb.RTC.html#pyb.RTC.datetime
+        import pyb
+        rtc = pyb.RTC()
+        rtc.datetime(rtc_time)
+    except:
+        try:
+            import pycom
+            # PyCom's machine.RTC takes its arguments in a slightly different order
+            # than the official machine.RTC.
+            # (year, month, day, hour, minute, second[, microsecond[, tzinfo]])
+            # https://docs.pycom.io/firmwareapi/pycom/machine/rtc/#rtc-init-datetime-none-source-rtc-internal-rc
+            rtc_time2 = (rtc_time[0], rtc_time[1], rtc_time[2], rtc_time[4], rtc_time[5], rtc_time[6])
+            import machine
+            rtc = machine.RTC()
+            rtc.init(rtc_time2)
+        except:
+            try:
+                # The machine.RTC documentation was incorrect and doesn't agree with the code, so no link
+                # is presented here. The order of the arguments is the same as the pyboard.
+                import machine
+                rtc = machine.RTC()
+                try:
+                    # ESP8266 uses rtc.datetime() rather than rtc.init()
+                    rtc.datetime(rtc_time)
+                except:
+                    # ESP32 (at least Loboris port) uses rtc.init()
+                    rtc.init(rtc_time)
+            except:
+                pass
+output = set_time((2021, 1, 6, 3, 19, 54, 44, 0))
+if output is None:
+    print("None")
+else:
+    print(output)
+
+-----
+-----Response-----
+b'None\r\n'
+-----
+Jan 06, 2021 19:54:44
+Evaluating board_name ... ----- About to send 710 bytes of code to the pyboard -----
+def board_name(default):
+    """Returns the boards name (if available)."""
+    try:
+        import board
+        try:
+            name = board.name
+        except AttributeError:
+            # There was a board.py file, but it didn't have an name attribute
+            # We also ignore this as an error
+            name = default
+    except ImportError:
+        # No board.py file on the pyboard - not an error
+        name = default
+    except BaseException as err:
+        print('Error encountered executing board.py')
+        import sys
+        sys.print_exception(err)
+        name = default
+    return repr(name)
+output = board_name('pyboard')
+if output is None:
+    print("None")
+else:
+    print(output)
+
+-----
+-----Response-----
+b"'pyboard'\r\n"
+-----
+pyboard
+Retrieving time epoch ... ----- About to send 334 bytes of code to the pyboard -----
+def get_time_epoch():
+    """Determines the epoch used by the MicroPython board."""
+    import time
+    try:
+      return time.gmtime(0)
+    except:
+      """Assume its a pyboard, with an epoch of 2000."""
+      return (2000, 1, 1, 0, 0, 0, 0, 0)
+output = get_time_epoch()
+if output is None:
+    print("None")
+else:
+    print(output)
+
+-----
+-----Response-----
+b'(2000, 1, 1, 0, 0, 0, 0, 0)\r\n'
+-----
+Jan 01, 2000
+Welcome to rshell. Use Control-D (or the exit command) to exit rshell.
+
+
+On est dans rshell !!
+prompt=/home/pi est le répertoire de travail où on a lancé rshell
+
+Sortie avec CTRL-D
+
+
+
+=======================================================================================
+MODE CONNECT avec REPL
+# debug off + editor nano (lancé avec edit ./nom_fichier)
+=======================================================================================
+pi@raspberrypi:~ $ rshell -p /dev/ttyUSB0 --editor nano
+Using buffer-size of 32
+Connecting to /dev/ttyUSB0 (buffer-size 32)...
+Trying to connect to REPL
+
+>>>>>>>>>>>>>>>>>>>>>>> (appuyer sur le bouton EN sur ESP32)
+
+ .............. connected
+Testing if ubinascii.unhexlify exists ... Y
+Retrieving root directories ... /DHT11_pub.py/ /boot.py/ /ftp.py/ /main.py/ /microWebSocket.py/ /microWebSrv.py/ /microWebSrv2.png/ /microWebTemplate.py/ /start.py/ /start2.py/ /start2b.py/ /umqtt/ /www/
+Setting time ... Jan 06, 2021 19:59:07
+Evaluating board_name ... pyboard
+Retrieving time epoch ... Jan 01, 2000
+Welcome to rshell. Use Control-D (or the exit command) to exit rshell.
+/home/pi>
+
+On est dans rshell !!
+prompt=/home/pi est le répertoire de travail où on a lancé rshell
+
+=====================================================================================
+Dans RSHELL 
+=====================================================================================
+******************* list répertoire travail
+/home/pi> ls   
+Arduino/                              Templates/                            2021-01-04-120627_1920x1080_scrot.png
+Bookshelf/                            Videos/                               2021-01-05-125940_1920x1080_scrot.png
+Desktop/                              nfs/                                  2021-01-05-173031_1920x1080_scrot.png
+Documents/                            2021-01-04-120342_1920x1080_scrot.png 2021-01-05-173321_1920x1080_scrot.png
+Downloads/                            2021-01-04-120404_1920x1080_scrot.png 2021-01-05-173339_1920x1080_scrot.png
+Music/                                2021-01-04-120413_1920x1080_scrot.png 2021-01-05-181345_1920x1080_scrot.png
+Pictures/                             2021-01-04-120424_1920x1080_scrot.png 2021-01-05-181500_1920x1080_scrot.png
+Public/                               2021-01-04-120433_1920x1080_scrot.png 2021-01-05-183049_1920x1080_scrot.png
+Scratch/                              2021-01-04-120544_1920x1080_scrot.png 2021-01-06-135437_1920x1080_scrot.png
+
+Pour lister le répertoire sue ESP32 : ls /pyboard
+/home/pi> ls /pyboard
+
+	umqtt/              boot.py             microWebSocket.py   start.py            microWebSrv2.png   
+	www/                ftp.py              microWebSrv.py      start2.py          
+	DHT11_pub.py        main.py             microWebTemplate.py start2b.py         
+
+
+Pour lire le fichier main.py sur /pyboard
+/home/pi> cat /pyboard/main.py
+
+	import network
+	from time import sleep
+	from umqtt.simple import MQTTClient
+	from machine import Pin
+	from dht import DHT11
+
+
+	led = Pin(2, Pin.OUT)
+	sensor = DHT11(Pin(15, Pin.IN, Pin.PULL_UP))
+
+	station = network.WLAN(network.STA_IF)
+	station.active(True)
+
+	# Situation normale sur SFR688
+	#station.connect("SFR_F688","a9leffeadiceracychlo")
+	#SERVER = '192.168.1.61' #MQTT Server PI4 address sur SFR688
+
+	# Situation panne SFR688, utilisation de Tenda_AC10 comme repeater Huawei P20
+	# editer main.py
+	station.connect("Tenda_8C2A30","existnose620")
+	SERVER = '192.168.0.175' #MQTT Server PI4 address sur Tenda_8C2A30
+
+	while station.isconnected() == False:
+	  pass
+	print('Connection successful')
+	print(station.ifconfig())
+
+	#flash once 
+	led.value(1)
+	sleep(0.1)
+	led.value(0)
+	sleep(1)
+
+
+	CLIENT_ID = 'ESP32_DHT22_Sensor'
+	TOPIC = b'temp_humidity'
+
+	client = MQTTClient(CLIENT_ID, SERVER)
+	client.connect()
+
+	#flash once
+	led.value(1)
+	sleep(0.1)
+	led.value(0)
+	sleep(1)
+
+	while True:
+		try:
+		    sensor.measure()
+		    t = sensor.temperature()
+		    h = sensor.humidity()
+		    if isinstance(t, int) and isinstance(h, int):
+		        msg = (b'{0:3.1f}, {1:3.1f}'.format(t,h))
+		        client.publish(TOPIC, msg)
+		        led.value(1)
+		        sleep(0.1)
+		        led.value(0)
+		        sleep(0.1)
+		        led.value(1)
+		        sleep(0.1)
+		        led.value(0)
+		        print(msg)
+		    else:
+		        print('Invalid sensor readings.')
+		except OSError:
+		    print('Failed to read sensor.')
+		sleep(5)
+
+/home/pi> 
+
+=======(lister les fichiers de ESP32 avec : boards)
+/home/pi> boards
+pyboard @ /dev/ttyUSB0 connected Epoch: 2000 Dirs: /DHT11_pub.py /DHT11_pub2.py /boot.py /ftp.py /main.py /main.tmp /main2.py /main_old.py /microWebSocket.py /microWebSrv.py /microWebSrv2.png /microWebTemplate.py /start.py /start2.py /start2b.py /umqtt /www /pyboard/DHT11_pub.py /pyboard/DHT11_pub2.py /pyboard/boot.py /pyboard/ftp.py /pyboard/main.py /pyboard/main.tmp /pyboard/main2.py /pyboard/main_old.py /pyboard/microWebSocket.py /pyboard/microWebSrv.py /pyboard/microWebSrv2.png /pyboard/microWebTemplate.py /pyboard/start.py /pyboard/start2.py /pyboard/start2b.py /pyboard/umqtt /pyboard/www
+
+/home/pi> 
+
+
+# Il est intéressant d'aller directement dans le répertoire /pyboard
+# pour travailler
+
+/home/pi> cd /pyboard
+
+/pyboard>
+
+# Et on accède directement aux fichiers
+
+# pour éditer main.py
+edit ./main.py
+
+=====================================================================================
+2 ) RSHELL -> REPL (pour entrer dans REPL à partir de rshell : repl)
+
+/home/pi> repl       
+MicroPython v1.13 on 2020-09-02; ESP32 module with ESP32
+Type "help()" for more information.
+>>> 
+>>> 
+>>> 
+
+Ici on est dans repl avec le prompt >>> !!!
+Faire CTRL-X pour quitter repl et revenir à rshell !
+
+On peut exécuter sous REPL les commandes python :
+
+exemple :
+
+>>> print('hello world!')
+
+# ou on exécute pour tester les modules comme main.py en utilisant import
+>>> import main
+
+Faire CTRL-C pour arrêter l'exécution du module
+
+Faire CTRL-X pour quitter repl et revenir à rshell!!
+
+=====================================================================================
+3) Executer un module depuis Thonny
+
+Tools/Options : choisir interpreter Micropython ESP32
+
+Commande : import main
+
+Si message :
+	Device is busy or does not respond. Your options:
+
+	  - wait until it completes current work;
+	  - use Ctrl+C to interrupt current work;
+	  - use Stop/Restart to interrupt more and enter REPL.
+Appuie sur EN sur ESP32
+
+
+	ets Jun  8 2016 00:22:57
+
+	rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+	configsip: 0, SPIWP:0xee
+	clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+	mode:DIO, clock div:2
+	load:0x3fff0018,len:4
+	load:0x3fff001c,len:5008
+	ho 0 tail 12 room 4
+	load:0x40078000,len:10600
+	ho 0 tail 12 room 4
+	load:0x40080400,len:5684
+	entry 0x400806bc
+	I (539) cpu_start: Pro cpu up.
+	I (539) cpu_start: Application information:
+	I (539) cpu_start: Compile time:     Sep  2 2020 03:00:08
+	I (542) cpu_start: ELF file SHA256:  0000000000000000...
+	I (548) cpu_start: ESP-IDF:          v3.3.2
+	I (553) cpu_start: Starting app cpu, entry point is 0x40082f30
+	I (0) cpu_start: App cpu up.
+	I (564) heap_init: Initializing. RAM available for dynamic allocation:
+	I (571) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+	I (577) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+	I (583) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+	I (589) heap_init: At 3FFBDB5C len 00000004 (0 KiB): DRAM
+	I (595) heap_init: At 3FFCA9E8 len 00015618 (85 KiB): DRAM
+	I (601) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+	I (607) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+	I (614) heap_init: At 4009DE28 len 000021D8 (8 KiB): IRAM
+	I (620) cpu_start: Pro cpu start user code
+	I (303) cpu_start: Starting scheduler on PRO CPU.
+	I (0) cpu_start: Starting scheduler on APP CPU.
+	I (320) modsocket: Initializing
+	I (530) wifi:wifi driver task: 3ffd11f8, prio:23, stack:3584, core=0
+	I (1366) system_api: Base MAC address is not set, read default base MAC address from BLK0 of EFUSE
+	I (1366) system_api: Base MAC address is not set, read default base MAC address from BLK0 of EFUSE
+	I (1406) wifi:wifi firmware version: 44aa95c
+	I (1406) wifi:config NVS flash: enabled
+	I (1406) wifi:config nano formating: disabled
+	I (1406) wifi:Init dynamic tx buffer num: 32
+	I (1406) wifi:Init data frame dynamic rx buffer num: 32
+	I (1416) wifi:Init management frame dynamic rx buffer num: 32
+	I (1416) wifi:Init management short buffer num: 32
+	I (1426) wifi:Init static rx buffer size: 1600
+	I (1426) wifi:Init static rx buffer num: 10
+	I (1436) wifi:Init dynamic rx buffer num: 32
+	I (1546) phy: phy_version: 4180, cb3948e, Sep 12 2019, 16:39:13, 0, 0
+	I (1546) wifi:mode : sta (a4:cf:12:6b:4f:84)
+	I (1556) wifi: STA_START
+	I (2886) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1
+	I (3726) wifi:state: init -> auth (b0)
+	I (3736) wifi:state: auth -> assoc (0)
+	I (3736) wifi:state: assoc -> run (10)
+	I (3786) wifi:connected with SFR_F688, aid = 3, channel 11, BW20, bssid = 24:95:04:a3:f6:8c
+	I (3786) wifi:security type: 2, phy: bgn, rssi: -74
+	I (3786) wifi:pm start, type: 1
+
+	I (3796) network: CONNECTED
+	I (3846) wifi:AP's beacon interval = 102400 us, DTIM period = 3
+	I (4576) event: sta ip: 192.168.1.42, mask: 255.255.255.0, gw: 192.168.1.1
+	I (4576) network: GOT_IP
+	PING 192.168.1.61 (192.168.1.61): 64 data bytes
+	4 packets transmitted, 0 packets received
+	I (12916) wifi:state: run -> init (0)
+	I (12916) wifi:pm stop, total sleep time: 7334019 us / 9123909 us
+
+	I (12916) wifi:new:<11,0>, old:<11,0>, ap:<255,255>, sta:<11,0>, prof:1
+	no 61
+	I (12916) wifi: STA_DISCONNECTED, reason:8
+	I (13656) wifi:new:<6,0>, old:<11,0>, ap:<255,255>, sta:<6,0>, prof:1
+	I (14496) wifi:state: init -> auth (b0)
+	I (14506) wifi:state: auth -> assoc (0)
+	I (14516) wifi:state: assoc -> run (10)
+	I (14526) wifi:connected with Tenda_8C2A30, aid = 2, channel 6, BW20, bssid = 50:0f:f5:8c:2a:31
+	I (14526) wifi:security type: 4, phy: bgn, rssi: -51
+	I (14536) wifi:pm start, type: 1
+
+	I (14536) network: CONNECTED
+	I (14626) wifi:AP's beacon interval = 102400 us, DTIM period = 3
+	I (15576) event: sta ip: 192.168.0.100, mask: 255.255.255.0, gw: 192.168.0.1
+	I (15576) network: GOT_IP
+	Connection successful
+	('192.168.0.100', '255.255.255.0', '192.168.0.1', '192.168.0.184')
+	Failed to read sensor.
+	Failed to read sensor.
+	Failed to read sensor.
+	Failed to read sensor.
+	Failed to read sensor.
+	Failed to read sensor.
+	b'24.0, 32.0'
