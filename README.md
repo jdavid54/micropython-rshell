@@ -121,4 +121,27 @@ while True:
 /home/pi> 
 
 CTRL-D to quit.
+
+# REPL
+
+# Enter REPL from rshell
+# You can execute directly python programs
+
+/home/pi> repl
+Entering REPL. Use Control-X to exit.
+>
+MicroPython v1.13 on 2020-09-02; ESP32 module with ESP32
+Type "help()" for more information.
+>>> 
+>>> import main.py
+I (48681) phy: phy_version: 4180, cb3948e, Sep 12 2019, 16:39:13, 0, 0
+Connection successful
+
+CTRL-X to exit REPL.
+
+# Return to rshell
+/home/pi> 
+
+CTRL-D to exit rshell.
+
 ```
