@@ -29,10 +29,11 @@ DHT11_pub2.py       main_old.py         start2.py
 boot.py             microWebSocket.py   start2b.py         
 ftp.py              microWebSrv.py      uping.py           
 
-
+# main.py is launched when ESP32 reboots.
 /home/pi> cat /pyboard/main.py
 
-# code python
+# python START
+
 import network
 from time import sleep
 from umqtt.simple import MQTTClient
@@ -46,6 +47,7 @@ sensor = DHT11(Pin(15, Pin.IN, Pin.PULL_UP))
 station = network.WLAN(network.STA_IF)
 station.active(True)
 
+# IP of broker server
 SERVER = '192.168.0.184'
 station.connect(SSID,PASSWORD)
 while station.isconnected() == False:
@@ -114,8 +116,9 @@ while True:
             led.value(1)
             sleep(0.1)
             led.value(0)
+# python END
 
 /home/pi> 
 
-CTRL-C to quit.
+CTRL-D to quit.
 ```
